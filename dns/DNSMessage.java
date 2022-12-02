@@ -3,6 +3,9 @@ package dns;
 import java.net.DatagramPacket;
 import java.util.HashMap;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.ByteArrayOutputStream;
 /**
  * Class representing a single DNS message.
  *
@@ -70,6 +73,8 @@ public class DNSMessage {
     private int TTL;
     private byte[] requestData;
     private int index;
+    private ByteArrayOutputStream output;
+    private byte[] bytesss;
 
 
     /**
@@ -96,8 +101,8 @@ public class DNSMessage {
         this.request = request;
         this.rdata = rdata;
         this.TTL = TTL;
-        System.out.println("rdata = " + rdata);
-        System.out.println("ttl = " + TTL);
+        // System.out.println("rdata = " + rdata);
+        // System.out.println("ttl = " + TTL);
         parseRequestHeader();
         getRequestFlags();
         getQuestions();
@@ -147,23 +152,42 @@ public class DNSMessage {
     }
 
     private void getQuestions() {
-        // parseQuestions();
+        output = new ByteArrayOutputStream();
         question_name = request.getQuestionName();
         question_class_str = request.getQuestionClass();
         question_type_str = request.getQuestionType();
 
-        System.out.println("name = " + question_name);
-        System.out.println("class = " + question_class_str);
-        System.out.println("type = " + question_type_str);
+        if (num_questions != 1) {
+            System.out.println("Error: Unexpected number of questions!");
+            return;
+        }
+
+        int next_byte = 12; 
+        int next_label_len = requestData[next_byte];
+
+        while (next_label_len != 0) {
+            int i;
+            for(i=next_byte+1; i <= next_byte+next_label_len; i++) {
+                output.write(requestData[i]);
+            }
+
+            next_byte = i;
+            next_label_len = requestData[next_byte];
+            
+        }
+        System.out.println("next_byte = " + next_byte);
+        next_byte += 1;
+        for (int j = 0; j < 4; j++) {
+            output.write(requestData[next_byte + j]); 
+        }
+        index = next_byte + 4;
     }
 
     private void getAnswers() {
         if (rdata == null) {
             num_answers = 0;
-            flag_rcode = 3;
         } else {
             num_answers = 1;
-            flag_rcode = 0;
         }
     }
 
@@ -177,8 +201,11 @@ public class DNSMessage {
     }
 
     private void buildResponse() {
-        // byte[] responseMsg = new byte[];
-        // request.getDataLength() + length of answer section
+        data_length = request.getDataLength() + 16;
+        data = new byte[data_length];
+        System.out.println("data lenght = " + data_length);
+
+        byte[] out = output.toByteArray();
     }
 
     /**
@@ -225,11 +252,13 @@ public class DNSMessage {
         flag_ra = flags >> 7 & 0x1;
         flag_rcode = flags & 0xf;
 
+        /*
         System.out.println("QR = " + flag_qr);
         System.out.println("AA = " + flag_aa);
         System.out.println("RD = " + flag_rd);
         System.out.println("RA = " + flag_ra);
         System.out.println("rcode = " + flag_rcode);
+        */
     }
 
     /**
