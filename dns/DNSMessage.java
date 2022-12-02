@@ -69,6 +69,7 @@ public class DNSMessage {
     private int rdLength; 
     private int TTL;
     private byte[] requestData;
+    private int index;
 
 
     /**
@@ -101,6 +102,7 @@ public class DNSMessage {
         getRequestFlags();
         getQuestions();
         getAnswers();
+        buildResponse();
     }
 
     private void parseRequestHeader() {
@@ -108,19 +110,51 @@ public class DNSMessage {
         id = bytesToShort(requestData[0], requestData[1]);
         flags = bytesToShort(requestData[2], requestData[3]);
         num_questions = bytesToShort(requestData[4], requestData[5]);
-        num_answers = 1;
-        // num_answers = bytesToShort(requestData[6], requestData[7]);
+        num_answers = bytesToShort(requestData[6], requestData[7]);
         num_auth_rrs = num_additional_rrs = 0;
     }
 
     private void getRequestFlags() {
+        setFlags();
         parseFlags();
-        flag_qr = flag_aa = 1;
-        flag_tc = flag_ra = 0;
+    }
+
+    private void setFlags() {
+        int left = (int)requestData[2] & 0xff;
+        int mask = 0;
+
+        // QR = 1
+        left = (left | setBit(mask,7, 1));
+
+        // AA = 1
+        left = left | setBit(mask,2, 1);
+        requestData[2] = (byte)left;
+
+        // TC = 0  
+        left = setBit(left, 1, 0);
+        
+        int right = (int)requestData[3] & 0xff;
+       
+        // Set all the bits to 0
+        right = 0; 
+        
+        // If rdata is null, set rcode to 3;
+        if (rdata == null) {
+            right = right | 0b11;
+        }
+        requestData[3] = (byte)right;
+        flags = bytesToShort(requestData[2], requestData[3]);
     }
 
     private void getQuestions() {
         // parseQuestions();
+        question_name = request.getQuestionName();
+        question_class_str = request.getQuestionClass();
+        question_type_str = request.getQuestionType();
+
+        System.out.println("name = " + question_name);
+        System.out.println("class = " + question_class_str);
+        System.out.println("type = " + question_type_str);
     }
 
     private void getAnswers() {
@@ -131,6 +165,20 @@ public class DNSMessage {
             num_answers = 1;
             flag_rcode = 0;
         }
+    }
+
+    // Set kth bit to 0 or 1 depending on the option number
+    private int setBit(int n, int pos, int option) {
+        n = n & 0xff;
+        if (option == 1) { n |= 1 << pos; }
+        else if (option == 0) { n &= ~(1 << pos) ; } 
+        else { System.out.println("WRONG OPTION NUMBER!"); }
+        return n;
+    }
+
+    private void buildResponse() {
+        // byte[] responseMsg = new byte[];
+        // request.getDataLength() + length of answer section
     }
 
     /**
@@ -176,6 +224,12 @@ public class DNSMessage {
         flag_rd = flags >> 8 & 0x1;
         flag_ra = flags >> 7 & 0x1;
         flag_rcode = flags & 0xf;
+
+        System.out.println("QR = " + flag_qr);
+        System.out.println("AA = " + flag_aa);
+        System.out.println("RD = " + flag_rd);
+        System.out.println("RA = " + flag_ra);
+        System.out.println("rcode = " + flag_rcode);
     }
 
     /**
