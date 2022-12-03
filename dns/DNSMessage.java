@@ -3,9 +3,10 @@ package dns;
 import java.net.DatagramPacket;
 import java.util.HashMap;
 
-import java.io.DataOutputStream;
-import java.io.IOException;
 import java.io.ByteArrayOutputStream;
+import java.util.*;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 /**
  * Class representing a single DNS message.
  *
@@ -101,12 +102,8 @@ public class DNSMessage {
         this.request = request;
         this.rdata = rdata;
         this.TTL = TTL;
-        // System.out.println("rdata = " + rdata);
-        // System.out.println("ttl = " + TTL);
         parseRequestHeader();
         getRequestFlags();
-        getQuestions();
-        getAnswers();
         buildResponse();
     }
 
@@ -151,12 +148,11 @@ public class DNSMessage {
         flags = bytesToShort(requestData[2], requestData[3]);
     }
 
-    private void getQuestions() {
-        output = new ByteArrayOutputStream();
+    private void getQuestions(ByteArrayOutputStream outputStream) {
+        // outputStream = new ByteArrayOutputStream();
         question_name = request.getQuestionName();
         question_class_str = request.getQuestionClass();
         question_type_str = request.getQuestionType();
-
         if (num_questions != 1) {
             System.out.println("Error: Unexpected number of questions!");
             return;
@@ -168,27 +164,62 @@ public class DNSMessage {
         while (next_label_len != 0) {
             int i;
             for(i=next_byte+1; i <= next_byte+next_label_len; i++) {
-                output.write(requestData[i]);
+                outputStream.write(requestData[i]);
             }
 
             next_byte = i;
             next_label_len = requestData[next_byte];
-            
+            outputStream.write(requestData[next_byte]);
         }
         System.out.println("next_byte = " + next_byte);
         next_byte += 1;
         for (int j = 0; j < 4; j++) {
-            output.write(requestData[next_byte + j]); 
+            outputStream.write(requestData[next_byte + j]); 
         }
         index = next_byte + 4;
     }
 
-    private void getAnswers() {
+    private void getAnswers(ByteArrayOutputStream outputStream) {
+        // output = new ByteArrayOutputStream();
         if (rdata == null) {
             num_answers = 0;
         } else {
             num_answers = 1;
         }
+        
+        // try {
+            // TTL
+            // outputStream.write(intToByteArr(TTL));
+
+            // RD Length
+            // outputStream.write(intToByteArr(rdLength));
+
+            // Rdata
+            // outputStream.write(stringToByte(rdata));
+
+            byte[] TTLByte = intToByteArr(TTL);
+            for (int i = 0; i < 4; i++) {
+                data[index] = TTLByte[i];
+                index++;
+            }
+            byte[] rdLengthByte = intToByteArr(rdLength);
+            for (int i = 0; i < 2; i++) {
+                data[index] = rdLengthByte[i];
+                index++;
+            }
+           
+            System.out.println("index = " + index);
+            byte[] rdataByte = stringToByte(rdata);
+            for (int i = 0; i < rdataByte.length; i ++) {
+                data[index] = rdataByte[i];
+                index++;
+            }
+            System.out.println("index = " + index);
+        /*
+        } catch (Exception e) {
+            System.out.println("Error: " + e);
+        }
+        */
     }
 
     // Set kth bit to 0 or 1 depending on the option number
@@ -201,11 +232,104 @@ public class DNSMessage {
     }
 
     private void buildResponse() {
-        data_length = request.getDataLength() + 16;
+        data_length = request.getDataLength() + 30;
         data = new byte[data_length];
-        System.out.println("data lenght = " + data_length);
+        // System.out.println("data length = " + data_length);
 
-        byte[] out = output.toByteArray();
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        data[0] = (byte) (id & 0xFF);
+        data[1] = (byte) ((id & 0xFF));
+        data[2] = (byte) (id & 0xFF);
+        data[3] = (byte) ((id & 0xFF));
+        for (int i = 4; i < 12; i++) {
+            data[i] = requestData[i];
+        }
+        
+        getQuestions(outputStream);
+        byte[] output = outputStream.toByteArray();
+        int k = 12;
+        int x = 2;
+        for (byte b : output) {
+            data[k] = b;
+            k++;
+        }
+        // System.out.println("index = " + index);
+        for (byte b : output) {
+            data[index] = b;
+            index++;
+        }
+        System.out.println("index = " + index);
+        // System.out.println(Arrays.toString(output));
+        getAnswers(outputStream); 
+        /*
+        output = outputStream.toByteArray();
+        for (byte b : output) {
+            data[index] = b;
+            index++;
+        }
+        */
+        /*
+        getAnswers();
+        out = output.toByteArray();
+        System.out.println("length of out = " + out.length);
+        System.out.println(Arrays.toString(out));
+        */
+        // data = output.toByteArray();
+        //
+        /*
+        try {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            outputStream.write(id);
+            outputStream.write(flags);
+            outputStream.write(question_class);
+            outputStream.write(num_answers);
+            outputStream.write(num_auth_rrs);
+            outputStream.write(num_additional_rrs);
+            // name: outputStream.write()
+            outputStream.write(question_type);
+            outputStream.write(question_class);
+            // outputStream.write(stringToByte(question_name));
+            outputStream.write(question_type);
+            outputStream.write(question_class);
+            outputStream.write(TTL);
+            // rdlength: outputStream.write();
+            // outputStream.write(stringToByte(rdata));
+
+            byte[] output = outputStream.toByteArray();
+            System.out.println("Printing byte array....\n");
+            System.out.println("length of output = " + output.length) ;
+            for (int i = 0; i < output.length; i++) {
+                System.out.println(output[i]);
+            }
+            // System.out.println(Arrays.toString(output)) ;
+        } catch (Exception e) {
+            System.out.println("Error: " + e);
+        }
+        */
+    }
+    
+    private byte[] stringToByte(String str) {
+        byte[] byteArr = str.getBytes(StandardCharsets.UTF_8); 
+        return byteArr;
+    }
+
+    private byte[] intToByteArr(int value) {
+        byte[] byteArr = new byte[4];
+        byteArr[0] = (byte) ((value & 0xFF000000) >> 24);
+        byteArr[1] = (byte) ((value & 0x00FF0000) >> 16);
+        byteArr[2] = (byte) ((value & 0x0000FF00) >> 8);
+        byteArr[3] = (byte) ((value & 0x000000FF) >> 0);
+        return byteArr;  
+    }
+
+    private byte[] stringToByteArr(String str) {
+        byte[] bArr = new byte[4];
+        String[] ipArr = rdata.split("\\.");
+        bArr[0] = (byte) (Integer.parseInt(ipArr[0]) & 0xFF);
+        bArr[1] = (byte) (Integer.parseInt(ipArr[1]) & 0xFF);
+        bArr[2] = (byte) (Integer.parseInt(ipArr[2]) & 0xFF);
+        bArr[3] = (byte) (Integer.parseInt(ipArr[3]) & 0xFF);
+        return bArr;
     }
 
     /**
