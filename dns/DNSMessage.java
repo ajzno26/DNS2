@@ -149,7 +149,6 @@ public class DNSMessage {
     }
 
     private void getQuestions(ByteArrayOutputStream outputStream) {
-        // outputStream = new ByteArrayOutputStream();
         question_name = request.getQuestionName();
         question_class_str = request.getQuestionClass();
         question_type_str = request.getQuestionType();
@@ -171,7 +170,6 @@ public class DNSMessage {
             next_label_len = requestData[next_byte];
             outputStream.write(requestData[next_byte]);
         }
-        System.out.println("next_byte = " + next_byte);
         next_byte += 1;
         for (int j = 0; j < 4; j++) {
             outputStream.write(requestData[next_byte + j]); 
@@ -180,23 +178,10 @@ public class DNSMessage {
     }
 
     private void getAnswers(ByteArrayOutputStream outputStream) {
-        // output = new ByteArrayOutputStream();
         if (rdata == null) {
             num_answers = 0;
         } else {
             num_answers = 1;
-        }
-        
-        // try {
-            // TTL
-            // outputStream.write(intToByteArr(TTL));
-
-            // RD Length
-            // outputStream.write(intToByteArr(rdLength));
-
-            // Rdata
-            // outputStream.write(stringToByte(rdata));
-
             byte[] TTLByte = intToByteArr(TTL);
             for (int i = 0; i < 4; i++) {
                 data[index] = TTLByte[i];
@@ -207,19 +192,12 @@ public class DNSMessage {
                 data[index] = rdLengthByte[i];
                 index++;
             }
-           
-            System.out.println("index = " + index);
-            byte[] rdataByte = stringToByte(rdata);
+            byte[] rdataByte = stringToByteArr(rdata);
             for (int i = 0; i < rdataByte.length; i ++) {
                 data[index] = rdataByte[i];
                 index++;
             }
-            System.out.println("index = " + index);
-        /*
-        } catch (Exception e) {
-            System.out.println("Error: " + e);
         }
-        */
     }
 
     // Set kth bit to 0 or 1 depending on the option number
@@ -234,8 +212,6 @@ public class DNSMessage {
     private void buildResponse() {
         data_length = request.getDataLength() + 30;
         data = new byte[data_length];
-        // System.out.println("data length = " + data_length);
-
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         data[0] = (byte) (id & 0xFF);
         data[1] = (byte) ((id & 0xFF));
@@ -253,59 +229,12 @@ public class DNSMessage {
             data[k] = b;
             k++;
         }
-        // System.out.println("index = " + index);
         for (byte b : output) {
             data[index] = b;
             index++;
         }
-        System.out.println("index = " + index);
-        // System.out.println(Arrays.toString(output));
         getAnswers(outputStream); 
-        /*
-        output = outputStream.toByteArray();
-        for (byte b : output) {
-            data[index] = b;
-            index++;
-        }
-        */
-        /*
-        getAnswers();
-        out = output.toByteArray();
-        System.out.println("length of out = " + out.length);
-        System.out.println(Arrays.toString(out));
-        */
-        // data = output.toByteArray();
-        //
-        /*
-        try {
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            outputStream.write(id);
-            outputStream.write(flags);
-            outputStream.write(question_class);
-            outputStream.write(num_answers);
-            outputStream.write(num_auth_rrs);
-            outputStream.write(num_additional_rrs);
-            // name: outputStream.write()
-            outputStream.write(question_type);
-            outputStream.write(question_class);
-            // outputStream.write(stringToByte(question_name));
-            outputStream.write(question_type);
-            outputStream.write(question_class);
-            outputStream.write(TTL);
-            // rdlength: outputStream.write();
-            // outputStream.write(stringToByte(rdata));
-
-            byte[] output = outputStream.toByteArray();
-            System.out.println("Printing byte array....\n");
-            System.out.println("length of output = " + output.length) ;
-            for (int i = 0; i < output.length; i++) {
-                System.out.println(output[i]);
-            }
-            // System.out.println(Arrays.toString(output)) ;
-        } catch (Exception e) {
-            System.out.println("Error: " + e);
-        }
-        */
+        // System.out.println(Arrays.toString(data));
     }
     
     private byte[] stringToByte(String str) {
@@ -375,14 +304,6 @@ public class DNSMessage {
         flag_rd = flags >> 8 & 0x1;
         flag_ra = flags >> 7 & 0x1;
         flag_rcode = flags & 0xf;
-
-        /*
-        System.out.println("QR = " + flag_qr);
-        System.out.println("AA = " + flag_aa);
-        System.out.println("RD = " + flag_rd);
-        System.out.println("RA = " + flag_ra);
-        System.out.println("rcode = " + flag_rcode);
-        */
     }
 
     /**
